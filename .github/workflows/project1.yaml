@@ -27,12 +27,15 @@ jobs:
             
             # Install nginx if not installed
             if ! command -v nginx >/dev/null 2>&1; then
-              sudo apt update -y || sudo yum update -y
-              sudo apt install -y nginx || sudo yum install -y nginx
+              sudo apt update -y
+              sudo apt install -y nginx
             fi
 
             sudo systemctl enable nginx
             sudo systemctl start nginx
+            
+             # Mark directory as safe for git
+            sudo git config --global --add safe.directory /var/www/html
 
             # Clone or update website
             if [ ! -d "/var/www/html/.git" ]; then
@@ -43,6 +46,6 @@ jobs:
               sudo git pull
             fi
 
-            sudo chown -R nginx:nginx /var/www/html
+            sudo chown -R www-data:www-data /var/www/html
             sudo systemctl restart nginx  
           EOF
