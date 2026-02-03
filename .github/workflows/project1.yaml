@@ -14,36 +14,36 @@ jobs:
         uses: actions/checkout@v4
       
       - name: SSH setup
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY}}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST}} >> ~/.ssh/known_hosts
+ 
           
       - name: Install Nginx if not installed
         run: |
-          if ! command -v nginx >/dev/null 2>&1; then
-            sudo apt update
-            sudo apt install -y nginx
-          else
-            echo "Nginx already installed"
-          fi
-      
-      - name: Clone website from GitHub
-        run: |
-          rm -rf website
-          git clone https://github.com/Al-Fahad/demo_app.git website
-          
-      - name: Copy website files to Nginx directory
-        run: |
-          sudo rm -rf /var/www/html/*
-          sudo cp -r website/* /var/www/html/
-          sudo chown -R www-data:www-data /var/www/html 
-          
-      - name: Start or restart Nginx
-        run: |
-          sudo systemctl enable nginx
-          sudo systemctl restart nginx
+          ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e
+            
+            # Install nginx if not installed
+            if ! command -v nginx >/dev/null 2>&1; then
+              sudo apt update -y || sudo yum update -y
+              sudo apt install -y nginx || sudo yum install -y nginx
+            fi
 
-      - name: Verify Nginx status
-        run: sudo systemctl status nginx --no-pager    
+            sudo systemctl enable nginx
+            sudo systemctl start nginx
+
+            # Clone or update website
+            if [ ! -d "/var/www/html/.git" ]; then
+              sudo rm -rf /var/www/html/*
+              sudo git clone https://github.com/Al-Fahad/demo_app.git /var/www/html
+            else
+              cd /var/www/html
+              sudo git pull
+            fi
+
+            sudo chown -R www-data:www-data /var/www/html || sudo chown -R nginx:nginx /var/www/html
+            sudo systemctl restart nginx
+          EOF   
