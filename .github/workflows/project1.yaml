@@ -1,0 +1,45 @@
+name: demo_project
+on:
+  push:
+    branches:
+      - main
+      
+jobs:
+  demo_project:
+    name: deploy a demo project
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: SSH setup
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          
+      - name: Install Nginx if not installed
+        run: |
+          if ! command -v nginx >/dev/null 2>&1; then
+            sudo apt update
+            sudo apt install -y nginx
+          else
+            echo "Nginx already installed"
+          fi
+      
+      - name: Copy website files to Nginx directory
+        run: |
+          sudo rm -rf /var/www/html/*
+          sudo cd /var/www/html/
+          sudo git pull
+          sudo chown -R www-data:www-data /var/www/html 
+          
+      - name: Start or restart Nginx
+        run: |
+          sudo systemctl enable nginx
+          sudo systemctl restart nginx
+
+      - name: Verify Nginx status
+        run: sudo systemctl status nginx --no-pager    
