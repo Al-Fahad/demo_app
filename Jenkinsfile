@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        EC2_HOST = credentials('EC2_HOST')
+        EC2_HOST = '13.250.123.182'
         EC2_USER = 'ubuntu'
         APP_DIR = '/var/www/html'
         BACKUP_DIR = '/var/www/backups'
