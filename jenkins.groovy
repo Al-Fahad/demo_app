@@ -33,7 +33,7 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                sshagent(credentials: [SSH_KEY_ID]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh """
                     ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
                     set -e
