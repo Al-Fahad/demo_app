@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         EC2_HOST = credentials('EC2_HOST')
-        EC2_USER = 'ubuntu'
+        EC2_USER = credentials('EC2_USER')
         APP_DIR = '/var/www/html'
         BACKUP_DIR = '/var/www/backups'
     }
@@ -17,13 +17,13 @@ pipeline {
             }
         }
 
-        stage('Package Application') {
+        stage('Package') {
             steps {
                 sh 'tar -czf app.tar.gz *'
             }
         }
 
-        stage('Deploy to EC2') {
+        stage('Deploy') {
             steps {
                 withCredentials([
                     sshUserPrivateKey(
@@ -34,7 +34,6 @@ pipeline {
                     sh '''
                     ssh -o StrictHostKeyChecking=no -i $SSH_KEY $EC2_USER@$EC2_HOST "
                     set -e
-
                     sudo mkdir -p $BACKUP_DIR
 
                     if [ -d $APP_DIR ]; then
@@ -63,35 +62,35 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                sh '''
-                echo "Health check passed"
-                '''
+                echo "Deployment successful"
             }
         }
     }
 
     post {
         failure {
-            echo "Deployment failed! Rolling back..."
+            script {
+                echo "Deployment failed! Rolling back..."
 
-            withCredentials([
-                sshUserPrivateKey(
-                    credentialsId: 'ec2-ssh-key',
-                    keyFileVariable: 'SSH_KEY'
-                )
-            ]) {
-                sh '''
-                ssh -o StrictHostKeyChecking=no -i $SSH_KEY $EC2_USER@$EC2_HOST "
-                if [ -f $BACKUP_DIR/backup.tar.gz ]; then
-                    sudo rm -rf $APP_DIR/*
-                    sudo tar -xzf $BACKUP_DIR/backup.tar.gz -C $APP_DIR
-                    sudo systemctl restart nginx
-                    echo 'Rollback completed.'
-                else
-                    echo 'No backup found.'
-                fi
-                "
-                '''
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'ec2-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )
+                ]) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no -i $SSH_KEY $EC2_USER@$EC2_HOST "
+                    if [ -f $BACKUP_DIR/backup.tar.gz ]; then
+                        sudo rm -rf $APP_DIR/*
+                        sudo tar -xzf $BACKUP_DIR/backup.tar.gz -C $APP_DIR
+                        sudo systemctl restart nginx
+                        echo 'Rollback completed.'
+                    else
+                        echo 'No backup found.'
+                    fi
+                    "
+                    '''
+                }
             }
         }
     }
